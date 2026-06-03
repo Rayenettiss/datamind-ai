@@ -26,3 +26,6 @@ outputs/
 # OS
 .DS_Store
 Thumbs.db
+
+#AI
+OAI_CONFIG_LIST
