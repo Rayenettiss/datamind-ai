@@ -1,0 +1,8 @@
+# backend/sandbox/Dockerfile.sandbox
+FROM python:3.10-slim
+
+WORKDIR /workspace
+
+RUN pip install --no-cache-dir pandas numpy matplotlib
+
+CMD ["python"]
