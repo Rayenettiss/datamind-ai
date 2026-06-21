@@ -1,0 +1,32 @@
+@import "tailwindcss";
+/* If this line errors, your project scaffolded Tailwind v3 instead — replace it with:
+   @tailwind base;
+   @tailwind components;
+   @tailwind utilities;
+*/
+
+:root {
+  --color-canvas: #0b0e14;
+  --color-surface: #11151c;
+  --color-line: #1e242e;
+  --color-ink: #e6e9ef;
+  --color-muted: #6b7280;
+  --color-accent: #7c9cff;
+  --color-planner: #5b8def;
+  --color-executor: #3fb68b;
+  --color-critic: #e0a03c;
+  --color-reporter: #a57ce8;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.mono {
+  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+}
