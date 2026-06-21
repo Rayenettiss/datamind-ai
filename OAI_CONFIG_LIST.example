@@ -1,0 +1,9 @@
+[
+    {
+        "model": "gpt-4o",
+        "api_key": "ta_clé_ici",
+        "base_url": "https://ton-resource.openai.azure.com/",
+        "api_type": "azure",
+        "api_version": "2024-02-01"
+    }
+]

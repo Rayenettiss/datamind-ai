@@ -116,7 +116,7 @@ datamind-ai/
 - [x] Environnement Python 3.11 configuré
 - [x] Dépendances installées
 - [x] Connexion Azure OpenAI validée
-- [ ] POC 2 agents (Planner ↔ Executor)
+- [x] POC 2 agents (Planner ↔ Executor)
 - [ ] 4 agents complets avec prompts
 - [ ] Docker sandbox
 - [ ] Cas d'usage 1 : Analyse CSV

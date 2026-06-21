@@ -1,7 +1,6 @@
 # Environnement
 venv/
 .env
-
 # Python
 __pycache__/
 *.pyc
@@ -28,4 +27,6 @@ outputs/
 Thumbs.db
 
 #AI
-OAI_CONFIG_LIST
+OAI_CONFIG_LIST.json
+
+uploads/
