@@ -27,12 +27,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${mono.variable} ${sans.variable}`}>
-      <body className="bg-[var(--color-canvas)] text-[var(--color-ink)] antialiased">
+      <body className="antialiased">
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">
             <Topbar />
-            <main className="flex-1 overflow-y-auto p-8">{children}</main>
+            <main className="flex-1 overflow-y-auto p-6">{children}</main>
           </div>
         </div>
       </body>
