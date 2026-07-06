@@ -1,10 +1,20 @@
 # api/main.py
 import shutil
+import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from celery.result import AsyncResult
+import redis.asyncio as aioredis
 
 from celery_app import celery_app
 from tasks import run_analysis_task
@@ -29,7 +39,6 @@ async def analyse(
 ):
     # On sauvegarde le fichier sous un nom temporaire unique avant de connaître le job_id,
     # puisque le job_id n'existe qu'une fois la tâche Celery créée.
-    import uuid
     temp_id = str(uuid.uuid4())
     job_dir = UPLOAD_DIR / temp_id
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -71,3 +80,22 @@ async def result(job_id: str):
         response["error"] = None
 
     return response
+
+
+@app.websocket("/stream/{job_id}")
+async def stream(websocket: WebSocket, job_id: str):
+    await websocket.accept()
+    r = aioredis.Redis(host="localhost", port=6379, db=0)
+    pubsub = r.pubsub()
+    channel = f"job:{job_id}"
+    await pubsub.subscribe(channel)
+
+    try:
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                await websocket.send_text(message["data"].decode())
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await pubsub.unsubscribe(channel)
+        await r.close()
