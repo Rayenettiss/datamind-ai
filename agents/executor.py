@@ -15,6 +15,9 @@ Le fichier de données réel sera présent dans le répertoire de travail sous l
 qui te sera donné dans le message utilisateur (champ "Nom du fichier"). Utilise ce nom
 exact avec pd.read_csv() ou pd.read_json() selon l'extension — ne suppose jamais un autre
 nom de fichier, et ne crée jamais de données fictives : le fichier existe réellement.
+Le script doit toujours afficher (print) les résultats finaux dans la console, en plus
+de les sauvegarder dans un fichier si nécessaire. Ne te contente jamais de sauvegarder
+sans rien afficher.
 Réponds UNIQUEMENT avec le code Python, dans un bloc ```python ... ```, sans explication.
 Si une erreur t'est transmise par le Critic, corrige le script en tenant compte de ses instructions.""",
     )
