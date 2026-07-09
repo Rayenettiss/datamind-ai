@@ -1,4 +1,5 @@
 # api/main.py
+import json
 import shutil
 import uuid
 from pathlib import Path
@@ -14,6 +15,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from celery.result import AsyncResult
+import redis as sync_redis
 import redis.asyncio as aioredis
 
 from celery_app import celery_app
@@ -80,6 +82,17 @@ async def result(job_id: str):
         response["error"] = None
 
     return response
+
+
+@app.get("/events/{job_id}")
+async def get_events(job_id: str):
+    """Retourne l'historique complet des événements déjà publiés pour ce job,
+    pour permettre à une page rechargée en cours de route de reconstruire
+    l'état déjà atteint avant de s'abonner au flux WebSocket en direct."""
+    r = sync_redis.Redis(host="localhost", port=6379, db=0)
+    history_key = f"job-history:{job_id}"
+    raw_events = r.lrange(history_key, 0, -1)
+    return {"events": [json.loads(e) for e in raw_events]}
 
 
 @app.websocket("/stream/{job_id}")

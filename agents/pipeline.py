@@ -71,6 +71,8 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
 
         if sandbox_result["returncode"] == 0:
             publish_event(job_id, {"agent": "EXECUTOR", "status": "done", "content": code, "attempts": attempt})
+            if attempt == 0:
+                publish_event(job_id, {"agent": "CRITIC", "status": "skipped"})
             break
 
         attempt += 1
@@ -82,7 +84,7 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
         critic_feedback = (
             critic_reply if isinstance(critic_reply, str) else critic_reply.get("content", "")
         )
-        publish_event(job_id, {"agent": "CRITIC", "status": "done", "content": critic_feedback, "attempt": attempt})
+        publish_event(job_id, {"agent": "CRITIC", "status": "done", "content": critic_feedback, "attempts": attempt})
 
         if "TERMINATE" in critic_feedback:
             break
