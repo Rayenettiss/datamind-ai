@@ -20,6 +20,7 @@ import redis.asyncio as aioredis
 
 from celery_app import celery_app
 from tasks import run_analysis_task
+from db import get_run_logs
 
 app = FastAPI(title="DataMind AI")
 
@@ -94,6 +95,12 @@ async def get_events(job_id: str):
     raw_events = r.lrange(history_key, 0, -1)
     return {"events": [json.loads(e) for e in raw_events]}
 
+@app.get("/runs/{job_id}/logs")
+async def runs_logs(job_id: str):
+    data = get_run_logs(job_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return data
 
 @app.websocket("/stream/{job_id}")
 async def stream(websocket: WebSocket, job_id: str):

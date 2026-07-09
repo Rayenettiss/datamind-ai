@@ -17,6 +17,7 @@ import {
   Brain,
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
+import StatusBadge, { type JobStatus } from "@/components/StatusBadge";
 
 type JobStatus = "PENDING" | "RUNNING" | "DONE" | "FAILED";
 type AgentKey = "PLANNER" | "EXECUTOR" | "CRITIC" | "REPORTER";
@@ -75,33 +76,6 @@ function formatElapsed(seconds: number) {
 function formatClock(ts: number) {
   const d = new Date(ts);
   return d.toTimeString().slice(0, 8); // HH:MM:SS
-}
-
-function StatusBadge({ status }: { status: JobStatus }) {
-  const config: Record<JobStatus, { label: string; color: string; pulse?: boolean }> = {
-    PENDING: { label: "PENDING", color: "var(--color-tertiary)" },
-    RUNNING: { label: "RUNNING", color: "var(--color-secondary)", pulse: true },
-    DONE: { label: "DONE", color: "var(--color-agent-executor)" },
-    FAILED: { label: "FAILED", color: "var(--color-error)" },
-  };
-  const { label, color, pulse } = config[status];
-  return (
-    <span
-      className="text-label-caps inline-flex items-center gap-1.5 rounded-full px-2.5 py-1"
-      style={{ backgroundColor: `${color}1A`, color }}
-    >
-      <span className="relative flex h-1.5 w-1.5">
-        {pulse && (
-          <span
-            className="absolute inline-flex h-full w-full rounded-full opacity-75 motion-safe:animate-ping"
-            style={{ backgroundColor: color }}
-          />
-        )}
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-      </span>
-      {label}
-    </span>
-  );
 }
 
 const STEP_ICONS = [Brain, Monitor, ListChecks, ScrollText];

@@ -9,6 +9,7 @@ from agents.critic import build_critic
 from agents.reporter import build_reporter
 from sandbox.run_in_sandbox import run_in_sandbox
 from events import publish_event
+from db import create_run, finish_run, log_agent_message
 
 load_dotenv()
 
@@ -35,6 +36,7 @@ def extract_code(message: str) -> str:
 
 
 def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max_retries: int = 5) -> dict:
+    
     llm_config = build_llm_config()
 
     planner = build_planner(llm_config)
@@ -48,6 +50,7 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
     )
     plan = plan_response if isinstance(plan_response, str) else plan_response.get("content", "")
     publish_event(job_id, {"agent": "PLANNER", "status": "done", "content": plan})
+    log_agent_message(job_id, "PLANNER", "done", plan)
 
     publish_event(job_id, {"agent": "EXECUTOR", "status": "running"})
     executor_prompt = (
@@ -71,8 +74,11 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
 
         if sandbox_result["returncode"] == 0:
             publish_event(job_id, {"agent": "EXECUTOR", "status": "done", "content": code, "attempts": attempt})
+            log_agent_message(job_id, "EXECUTOR", "done", code)
             if attempt == 0:
                 publish_event(job_id, {"agent": "CRITIC", "status": "skipped"})
+                log_agent_message(job_id, "CRITIC", "skipped", "Not needed — the script succeeded on the first try.")
+
             break
 
         attempt += 1
@@ -85,7 +91,7 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
             critic_reply if isinstance(critic_reply, str) else critic_reply.get("content", "")
         )
         publish_event(job_id, {"agent": "CRITIC", "status": "done", "content": critic_feedback, "attempts": attempt})
-
+        log_agent_message(job_id, "CRITIC", "done", critic_feedback)
         if "TERMINATE" in critic_feedback:
             break
 
@@ -105,15 +111,16 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
 
     publish_event(job_id, {"agent": "REPORTER", "status": "running"})
     reporter_prompt = f"""Objectif : {objective}
-Plan : {plan}
-Résultat de l'exécution (stdout) : {sandbox_result['stdout'] if sandbox_result else 'Aucune exécution réussie'}
-Erreurs éventuelles : {sandbox_result['stderr'] if sandbox_result else ''}
-Nombre de tentatives : {attempt}
-"""
+    Plan : {plan}
+    Résultat de l'exécution (stdout) : {sandbox_result['stdout'] if sandbox_result else 'Aucune exécution réussie'}
+    Erreurs éventuelles : {sandbox_result['stderr'] if sandbox_result else ''}
+    Nombre de tentatives : {attempt}
+    """
     reporter_reply = reporter.generate_reply(
         messages=[{"role": "user", "content": reporter_prompt}]
     )
     summary = reporter_reply if isinstance(reporter_reply, str) else reporter_reply.get("content", "")
+    log_agent_message(job_id, "REPORTER", "done", summary)
     publish_event(job_id, {"agent": "REPORTER", "status": "done", "content": summary})
 
     result = {
@@ -124,4 +131,5 @@ Nombre de tentatives : {attempt}
         "summary": summary,
     }
     publish_event(job_id, {"event": "PIPELINE_DONE", "result": result})
+    finish_run(job_id, "DONE", result)
     return result
