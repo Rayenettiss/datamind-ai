@@ -10,6 +10,7 @@ from agents.reporter import build_reporter
 from sandbox.run_in_sandbox import run_in_sandbox
 from events import publish_event
 from db import create_run, finish_run, log_agent_message
+from context_manager import enforce_token_budget
 
 load_dotenv()
 
@@ -36,7 +37,7 @@ def extract_code(message: str) -> str:
 
 
 def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max_retries: int = 5) -> dict:
-    
+
     llm_config = build_llm_config()
 
     planner = build_planner(llm_config)
@@ -59,6 +60,11 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
         f"Plan :\n{plan}\n\n"
         f"Écris le script Python correspondant."
     )
+    executor_prompt, was_truncated = enforce_token_budget(executor_prompt)
+    if was_truncated:
+        publish_event(job_id, {"agent": "EXECUTOR", "status": "warning", "content": "Prompt truncated — exceeded token budget."})
+        log_agent_message(job_id, "EXECUTOR", "warning", "Prompt truncated before sending — exceeded token budget.")
+
     executor_reply = executor.generate_reply(
         messages=[{"role": "user", "content": executor_prompt}]
     )
@@ -84,6 +90,11 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
         attempt += 1
         publish_event(job_id, {"agent": "CRITIC", "status": "running"})
         critic_prompt = f"Le script suivant a échoué :\n\n{code}\n\nErreur :\n{sandbox_result['stderr']}"
+        critic_prompt, was_truncated = enforce_token_budget(critic_prompt)
+        if was_truncated:
+            publish_event(job_id, {"agent": "CRITIC", "status": "warning", "content": "Prompt truncated — exceeded token budget."})
+            log_agent_message(job_id, "CRITIC", "warning", "Prompt truncated before sending — exceeded token budget.")
+
         critic_reply = critic.generate_reply(
             messages=[{"role": "user", "content": critic_prompt}]
         )
@@ -102,6 +113,11 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
             f"et est déjà présent dans le répertoire de travail.\n\n"
             f"Corrige le script :\n{code}"
         )
+        fix_prompt, was_truncated = enforce_token_budget(fix_prompt)
+        if was_truncated:
+            publish_event(job_id, {"agent": "EXECUTOR", "status": "warning", "content": "Prompt truncated — exceeded token budget."})
+            log_agent_message(job_id, "EXECUTOR", "warning", "Prompt truncated before sending — exceeded token budget.")
+
         executor_reply = executor.generate_reply(
             messages=[{"role": "user", "content": fix_prompt}]
         )
@@ -116,6 +132,11 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
     Erreurs éventuelles : {sandbox_result['stderr'] if sandbox_result else ''}
     Nombre de tentatives : {attempt}
     """
+    reporter_prompt, was_truncated = enforce_token_budget(reporter_prompt)
+    if was_truncated:
+        publish_event(job_id, {"agent": "REPORTER", "status": "warning", "content": "Prompt truncated — exceeded token budget."})
+        log_agent_message(job_id, "REPORTER", "warning", "Prompt truncated before sending — exceeded token budget.")
+
     reporter_reply = reporter.generate_reply(
         messages=[{"role": "user", "content": reporter_prompt}]
     )

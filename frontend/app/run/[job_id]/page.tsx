@@ -465,12 +465,14 @@ export default function RunPage() {
           ? { state: "running", receivedAt: Date.now() }
           : data.status === "skipped"
             ? { state: "skipped", receivedAt: Date.now() }
-            : {
-                state: "done",
-                content: data.content,
-                attempts: data.attempts,
-                receivedAt: Date.now(),
-              },
+            : data.status === "warning"
+              ? prev[agent] // on ignore visuellement, le warning est déjà loggé côté backend
+              : {
+                  state: "done",
+                  content: data.content,
+                  attempts: data.attempts,
+                  receivedAt: Date.now(),
+                },
     }));
     setSelectedAgent((prev) => prev ?? agent);
   }
