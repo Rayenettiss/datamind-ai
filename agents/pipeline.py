@@ -9,8 +9,11 @@ from agents.critic import build_critic
 from agents.reporter import build_reporter
 from sandbox.run_in_sandbox import run_in_sandbox
 from events import publish_event
-from db import create_run, finish_run, log_agent_message
+from db import create_run, finish_run, log_agent_message, save_plan_embedding, search_similar_plans
 from context_manager import enforce_token_budget
+from embeddings import embed_text
+
+SIMILARITY_THRESHOLD = float(os.getenv("PLAN_SIMILARITY_THRESHOLD", "0.75"))
 
 load_dotenv()
 
@@ -46,8 +49,46 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
     reporter = build_reporter(llm_config)
 
     publish_event(job_id, {"agent": "PLANNER", "status": "running"})
+
+    similar_plans = []
+    try:
+        print(f"[DEBUG] pipeline: searching similar plans for objective: {objective[:50]}", flush=True)
+        objective_embedding = embed_text(objective)
+        print(f"[DEBUG] pipeline: embedding obtained, len={len(objective_embedding)}", flush=True)
+        similar_plans = search_similar_plans(
+            objective_embedding, top_k=3, similarity_threshold=SIMILARITY_THRESHOLD
+        )
+        print(f"[DEBUG] pipeline: similar_plans found = {len(similar_plans)}", flush=True)
+    except Exception as e:
+        print(f"[DEBUG] pipeline: EXCEPTION in similarity search: {e}", flush=True)
+        # Un échec de la mémoire long terme ne doit jamais bloquer le Planner —
+        # on continue simplement sans few-shot context.
+        log_agent_message(job_id, "SYSTEM", "warning", f"pgvector similarity search failed: {e}")
+
+    planner_prompt = objective
+    if similar_plans:
+        few_shot = "\n\n".join(
+            f"Objectif similaire passé : {p['objective']}\n"
+            f"Plan utilisé :\n{p['plan_text']}\n"
+            f"Résumé du résultat :\n{p['summary_text']}"
+            for p in similar_plans
+        )
+        planner_prompt = (
+            f"Voici {len(similar_plans)} run(s) passé(s) sur des objectifs similaires, "
+            f"à utiliser comme référence si pertinent (adapte, ne recopie pas aveuglément) :\n\n"
+            f"{few_shot}\n\n---\n\nNouvel objectif : {objective}"
+        )
+        publish_event(job_id, {
+            "agent": "PLANNER", "status": "context",
+            "content": f"{len(similar_plans)} plan(s) similaire(s) trouvé(s) et injecté(s) en contexte."
+        })
+        log_agent_message(
+            job_id, "PLANNER", "context",
+            f"{len(similar_plans)} plan(s) similaire(s) injecté(s) (seuil={SIMILARITY_THRESHOLD})."
+        )
+
     plan_response = planner.generate_reply(
-        messages=[{"role": "user", "content": objective}]
+        messages=[{"role": "user", "content": planner_prompt}]
     )
     plan = plan_response if isinstance(plan_response, str) else plan_response.get("content", "")
     publish_event(job_id, {"agent": "PLANNER", "status": "done", "content": plan})
@@ -151,6 +192,18 @@ def run_pipeline(objective: str, file_path: str, filename: str, job_id: str, max
         "attempts": attempt,
         "summary": summary,
     }
+    # Mémoire long terme : n'indexer que les runs réellement réussis
+    # (sandbox_result présent et returncode == 0), pour ne pas polluer les
+    # futures suggestions du Planner avec des plans qui ont échoué.
+    if sandbox_result and sandbox_result.get("returncode") == 0:
+        try:
+            combined_text = f"{plan}\n\n{summary}"
+            plan_embedding = embed_text(combined_text)
+            save_plan_embedding(job_id, objective, plan, summary, plan_embedding)
+        except Exception as e:
+            # Un échec d'embedding ne doit jamais faire échouer un run par ailleurs réussi.
+            log_agent_message(job_id, "SYSTEM", "warning", f"pgvector embedding failed: {e}")
+
     publish_event(job_id, {"event": "PIPELINE_DONE", "result": result})
     finish_run(job_id, "DONE", result)
     return result

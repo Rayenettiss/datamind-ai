@@ -1,7 +1,7 @@
 # context_manager.py
 import tiktoken
 
-TOKEN_LIMIT = 5  # or whatever you're testing with
+TOKEN_LIMIT = 100_000  # or whatever you're testing with
 print(f"[context_manager] LOADED — TOKEN_LIMIT={TOKEN_LIMIT}", flush=True)
 ENCODING = tiktoken.get_encoding("o200k_base")  # encodage utilisé par GPT-4o
 

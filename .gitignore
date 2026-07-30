@@ -30,3 +30,7 @@ Thumbs.db
 OAI_CONFIG_LIST.json
 
 uploads/
+celery_log.txt
+body*.json
+test_mogrify.py
+test_similarity_query.py
