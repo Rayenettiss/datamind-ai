@@ -30,6 +30,10 @@ def run_in_sandbox(code: str, input_file_path: Optional[str] = None) -> dict:
                     "docker", "run", "--rm",
                     "--memory", MEMORY_LIMIT,
                     "--memory-swap", MEMORY_LIMIT,  # empêche l'usage de swap au-delà de la limite
+                    "-e", "PYTHONIOENCODING=utf-8",  # force stdout/stderr en UTF-8 dans le conteneur,
+                                                       # indépendamment de la locale de l'image —
+                                                       # évite le mojibake côté host (voir run_in_sandbox
+                                                       # docstring / PROJECT_STATE.md pour le contexte)
                     "-v", f"{tmp_path}:/workspace",
                     "-w", "/workspace",
                     IMAGE_NAME,
@@ -37,6 +41,8 @@ def run_in_sandbox(code: str, input_file_path: Optional[str] = None) -> dict:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=TIMEOUT_SECONDS,
             )
             return {
